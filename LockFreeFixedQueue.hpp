@@ -7,31 +7,33 @@ using namespace std;
 template <typename T>
 struct LockFreeFixedQueue {
     const int len;
-    counting_semaphore<999999999> filled, empty;
-    atomic<int> begin, end;
+    atomic<int> readers, writers;
+    atomic<unsigned int> begin, end;
     vector<T> store;
 
-    LockFreeFixedQueue(int len): len{len}, filled{0}, empty{len}, begin{0}, end{0}, store(len, T()) {}
-
-    int next(int i) {
-        return (i + 1) % len;
-    }
+    LockFreeFixedQueue(int pow_2): len{1 << pow_2}, readers{0}, writers{len}, begin{0}, end{0}, store(len, T()) {}
 
     void push(T obj) {
-        empty.acquire();
-        int i = begin.load();
-        while (!begin.compare_exchange_strong(i, next(i)));
-        store[i] = obj; 
-        filled.release();
+        // a spinlock sucks, but if we use wait, the notification can be lost.
+        // also problem with wait is that 2 threads can read the same value.
+        while (writers.fetch_sub(1) <= 0) writers++;
+
+        int idx = begin.fetch_add(1) % len;
+        store[idx] = obj;
+
+        readers++;
     }
 
     T pop() {
-        T out;
-        filled.acquire();
-        int i = end.load();
-        while (!end.compare_exchange_strong(i, next(i)));
-        out = store[i];
-        empty.release();
-        return out;
+        T obj;
+
+        while (readers.fetch_sub(1) <= 0) readers++;
+
+        int idx = end.fetch_add(1) % len;
+        obj = store[idx];
+
+        writers++;
+
+        return obj;
     }
 };
