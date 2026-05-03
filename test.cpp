@@ -18,22 +18,27 @@ void pop(LockFreeFixedQueue<int>& lfq) {
 }
 
 int main() {
-    LockFreeFixedQueue<int> lfq(5);
-    int s1 = 0, s2 = 0;
+    LockFreeFixedQueue<int> lfq(10);
+    long long s1 = 0, s2 = 0;
+    int N = 1e3;
 
     {
-        jthread j1([&lfq] () {
-            for (int i = 0; i < 100; i++) lfq.push(i);
+        jthread p1([&lfq, N] () {
+            for (int i = 0; i < N; i++) lfq.push(i);
         });
 
-        jthread j2([&lfq, &s1] () {
-            for (int i = 0; i < 50; i++) s1 += lfq.pop();
-            println("{}", s1);
+        jthread p2([&lfq, N] () {
+            for (int i = 0; i < N; i++) lfq.push(i);
         });
 
-        jthread j3([&lfq, &s2] () {
-        for (int i = 0; i < 50; i++) s2 += lfq.pop();
-        println("{}", s2); 
+        jthread c1([&lfq, &s1, N] () {
+            for (int i = 0; i < N; i++) s1 += lfq.pop();
+            //println("{}", s1);
+        });
+
+        jthread c2([&lfq, &s2, N] () {
+            for (int i = 0; i < N; i++) s2 += lfq.pop();
+            //println("{}", s2); 
         });
     }
 
