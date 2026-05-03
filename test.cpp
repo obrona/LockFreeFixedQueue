@@ -20,7 +20,7 @@ void pop(LockFreeFixedQueue<int>& lfq) {
 int main() {
     LockFreeFixedQueue<int> lfq(10);
     long long s1 = 0, s2 = 0;
-    int N = 1e3;
+    int N = 1e5;
 
     {
         jthread p1([&lfq, N] () {
