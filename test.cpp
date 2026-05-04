@@ -2,6 +2,7 @@
 #include <iostream>
 #include <print>
 #include <thread>
+#include <numeric>
 using namespace std;
 
 void push(LockFreeFixedQueue<int>& lfq) {
@@ -18,29 +19,31 @@ void pop(LockFreeFixedQueue<int>& lfq) {
 }
 
 int main() {
+    int N = 10, M = 10000;
     LockFreeFixedQueue<int> lfq(10);
-    long long s1 = 0, s2 = 0;
-    int N = 1e5;
-
+    vector<long long> store(N, 0);
+    
     {
-        jthread p1([&lfq, N] () {
-            for (int i = 0; i < N; i++) lfq.push(i);
-        });
+        vector<jthread> producers, consumers;
+        
+        for (int p = 0; p < N; p++) {
+            producers.emplace_back(
+                [&lfq, M] () {
+                    for (int i = 0; i < M; i++) lfq.push(i);
+                }
+            );
+        }
 
-        jthread p2([&lfq, N] () {
-            for (int i = 0; i < N; i++) lfq.push(i);
-        });
+        for (int c = 0; c < N; c++) {
+            consumers.emplace_back(
+                [&lfq, &store, M, c] () {
+                    for (int i = 0; i < M; i++) store[c] += lfq.pop();
+                }
+            );
+        }
 
-        jthread c1([&lfq, &s1, N] () {
-            for (int i = 0; i < N; i++) s1 += lfq.pop();
-            //println("{}", s1);
-        });
-
-        jthread c2([&lfq, &s2, N] () {
-            for (int i = 0; i < N; i++) s2 += lfq.pop();
-            //println("{}", s2); 
-        });
     }
 
-    println("{}", s1 + s2);
+    long long sum = accumulate(store.begin(), store.end(), 0, [] (int acc, int x) { return acc + x; });
+    println("{}", sum);
 }
